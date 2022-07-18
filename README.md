@@ -2,6 +2,10 @@
 Compute credible intervals quickly.
 ## Just give me the code
 ```python
+import numpy as np
+import scipy.interpolate as sip
+import scipy.optimize as sop
+
 def credibility_interval(samples, weights=None, level=0.68):
     assert level<1, "Level >= 1!"
     weights = np.ones(len(samples)) if weights is None else weights
