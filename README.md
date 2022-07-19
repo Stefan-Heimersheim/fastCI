@@ -1,28 +1,8 @@
 # fastCI
 Compute credible intervals quickly.
-## Quickstart: Simple code
-```python
-import numpy as np
-import scipy.interpolate as sip
-import scipy.optimize as sop
 
-def credibility_interval(samples, weights=None, level=0.68):
-    assert level<1, "Level >= 1!"
-    weights = np.ones(len(samples)) if weights is None else weights
-    # Sort and normalize
-    order = np.argsort(samples)
-    samples = np.array(samples)[order]
-    weights = np.array(weights)[order]/np.sum(weights)
-    # Compute inverse cumulative distribution function
-    cumsum = np.cumsum(weights)
-    S = np.array([np.min(samples), *samples, np.max(samples)])
-    CDF = np.append(np.insert(np.cumsum(weights), 0, 0), 1)
-    invCDF = sip.interp1d(CDF, S)
-    # Find smallest interval
-    distance = lambda Y, level=level: invCDF(Y+level)-invCDF(Y)
-    res = sop.minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
-    return np.array([invCDF(res.x), invCDF(res.x+level)])
-```
+[Jump to code](https://github.com/Stefan-Heimersheim/fastCI/blob/main/README.md#full-code)
+
 ## What is a credible interval?
 A [credible interval](https://en.wikipedia.org/wiki/Credible_interval) is an interval containing a certain fraction (e.g. 68%) of the probability volume of a distribution. Or, in other words, the true value of an unknown parameter lies within the _68% credible interval_ with 68% probability.
 
@@ -128,4 +108,29 @@ def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
         return np.array([invCDF((1-level)/2), invCDF((1+level)/2)])
     else:
         raise ValueError("Method '{0:}' unknown".format(method))
+```
+
+## Simple version
+A couple of quick-to-read lines, just to compute the HPD interval:
+```python
+import numpy as np
+import scipy.interpolate as sip
+import scipy.optimize as sop
+
+def credibility_interval(samples, weights=None, level=0.68):
+    assert level<1, "Level >= 1!"
+    weights = np.ones(len(samples)) if weights is None else weights
+    # Sort and normalize
+    order = np.argsort(samples)
+    samples = np.array(samples)[order]
+    weights = np.array(weights)[order]/np.sum(weights)
+    # Compute inverse cumulative distribution function
+    cumsum = np.cumsum(weights)
+    S = np.array([np.min(samples), *samples, np.max(samples)])
+    CDF = np.append(np.insert(np.cumsum(weights), 0, 0), 1)
+    invCDF = sip.interp1d(CDF, S)
+    # Find smallest interval
+    distance = lambda Y, level=level: invCDF(Y+level)-invCDF(Y)
+    res = sop.minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
+    return np.array([invCDF(res.x), invCDF(res.x+level)])
 ```
