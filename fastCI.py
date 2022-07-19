@@ -2,10 +2,12 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
 
+
 def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
-    """Compute the credibility interval of weighted samples. Based on
-    linear interpolation of the cumulative density function, thus expected
-    discretization errors on the scale of distances between samples.
+    """Compute the credibility interval of weighted samples.
+
+    Based on linear interpolation of the cumulative density function, thus
+    expect discretization errors on the scale of distances between samples.
 
     Parameters
     ----------
@@ -30,7 +32,7 @@ def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
     limit: tuple or float
         Tuple [lower, upper] for hpd/et, or float for ll/ul
     """
-    if level>=1:
+    if level >= 1:
         raise ValueError('level must be <1, got {0:.2f}'.format(level))
     if len(np.shape(samples)) != 1:
         raise ValueError('Support only 1D arrays for samples')
@@ -43,7 +45,6 @@ def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
     samples = np.array(samples)[order]
     weights = np.array(weights)[order]/np.sum(weights)
     # Compute inverse cumulative distribution function
-    cumsum = np.cumsum(weights)
     S = np.array([np.min(samples), *samples, np.max(samples)])
     CDF = np.append(np.insert(np.cumsum(weights), 0, 0), 1)
     invCDF = interp1d(CDF, S)
