@@ -46,13 +46,14 @@ Going back to our common-sense consideration beforehand, the automated solution 
 The function in `fastCI.py` can be used to compute the HPD and equal-tailed intervals, as well as lower and upper limits (percentiles). It also includes some checks to make sure all arguments are OK.
 ```python
 import numpy as np
-import scipy.interpolate as sip
-import scipy.optimize as sop
+from scipy.interpolate import interp1d
+from scipy.optimize import minimize_scalar
 
 def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
     """Compute the credibility interval of weighted samples. Based on
     linear interpolation of the cumulative density function, thus expected
     discretization errors on the scale of distances between samples.
+
     Parameters
     ----------
     samples: array
@@ -70,6 +71,7 @@ def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
           `level` fraction of the samples lie above / below the limit.
         * et: Equal-tailed interval with the same fraction of samples
           below and above the interval region.
+
     Returns
     -------
     limit: tuple or float
@@ -91,12 +93,12 @@ def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
     cumsum = np.cumsum(weights)
     S = np.array([np.min(samples), *samples, np.max(samples)])
     CDF = np.append(np.insert(np.cumsum(weights), 0, 0), 1)
-    invCDF = sip.interp1d(CDF, S)
+    invCDF = interp1d(CDF, S)
 
     if method == "hpd":
         # Find smallest interval
         distance = lambda Y, level=level: invCDF(Y+level)-invCDF(Y)
-        res = sop.minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
+        res = minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
         return np.array([invCDF(res.x), invCDF(res.x+level)])
     elif method == "ll":
         # Get value from which we reach the desired level
@@ -114,8 +116,8 @@ def credibility_interval(samples, weights=None, level=0.68, method="hpd"):
 A couple of quick-to-read lines, just to compute the HPD interval:
 ```python
 import numpy as np
-import scipy.interpolate as sip
-import scipy.optimize as sop
+from scipy.interpolate import interp1d
+from scipy.optimize import minimize_scalar
 
 def credibility_interval(samples, weights=None, level=0.68):
     assert level<1, "Level >= 1!"
@@ -128,9 +130,9 @@ def credibility_interval(samples, weights=None, level=0.68):
     cumsum = np.cumsum(weights)
     S = np.array([np.min(samples), *samples, np.max(samples)])
     CDF = np.append(np.insert(np.cumsum(weights), 0, 0), 1)
-    invCDF = sip.interp1d(CDF, S)
+    invCDF = interp1d(CDF, S)
     # Find smallest interval
     distance = lambda Y, level=level: invCDF(Y+level)-invCDF(Y)
-    res = sop.minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
+    res = minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
     return np.array([invCDF(res.x), invCDF(res.x+level)])
 ```
