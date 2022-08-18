@@ -17,22 +17,29 @@ In terms of types of intervals, there are 3 types of credible interval I see oft
 ![illustration](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/mean-centered-interval.png?raw=true)
 (Note: The interval happens to look similar to the previous one, this is a coincidence and not generally true.)
 
-## Computing the iso-pdf interval efficiently
+## Sample-based iso-pdf/HDP interval
 Common methods rely on interpolating the probability density function (PDF) via kernel density estimation (KDE) to derive the credible interval. This (a) introduces a dependency on the KDE used, and (b) is often quite slow, especially for large sample sizes.
 
-Instead, we can use the samples themselves to derive this interval, realizing that iso-pdf and HPD are independent, and HPD does not require an interpolated PDF. Here is an example of a Normal distribution, along with a histogram of 1000 samples and the 68% HPD interval derived from these samples:
+Instead, we can use the samples themselves to derive this interval, realizing that iso-pdf and HPD are equivalent, and HPD does not require an interpolated PDF. Here is an example of a Normal distribution, along with a histogram of 1000 samples and the 68% HPD interval derived from these samples:
 ![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example.png?raw=true)
 
-To understand how, let us look at this smaller 10-sample demonstration. Starting with common sense, we can already see what the smallest intervals containing 60 and 70% of the data are, i.e. these are the respective HPD intervals. We also notice possible uncertainties, coming from (a) the precise number (68%) not matching the availble fractions (green arrow, 10 points -> 50%, or 60%, or 70% etc.), and from (b) the concrete realization of the data (red arrows, the position of those data points was somewhat random).
-![low-sample example](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/low_sample_example.png?raw=true)
+### Possible biases with low sample density
+There are two issues to be aware of when the sample density is low:
 
-Also, this feels a bit _unfair_, including points exactly at the edges of the intervals. And with _unfair_ I mean it's relying on the low sample size and probably underestimating the interval size. We could also choose these intervals differently (looking at 70% only now):
-![low-sample example-v2](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/low_sample_example_v2.png?raw=true)
-The green line seems like a fair middle ground, extending the one side but not the other -- and choosing the steeper side to extend to aim for the highest posterior denity.
+1. There are many intervals we can draw all including the same samples. The HPD would be the narrowest of these intervals, but intuitively we can see that this is an unusually small interval
+![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example_1.png?raw=true)
 
-Now to the way to (quickly) calculate this. Key is that, for any start point of an interval `a`, we can easily find the end point `b` that makes `[a,b]` the, say, 68% confidence interval. The cumulative density function (CDF) gives us the probability volume, so we want to fulfill `CDF(b) - CDF(a) = 68%`. Since we have discrete samples we can easily calculate the CDF (`np.cumsum`) and invert it to get the inverse CDF.
+2. With e.g. 10 samples, we can only compute credibility intervals in 10% steps, we cannot read off 68% of 10 samples, just 60% or 70%
+![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example_2.png?raw=true)
+
+
+### The Cumulative Density Function
+We can actually easily and efficiently compute the HPD interval using the Cumulative Density Function (CDF). Key is that, for any start point of an interval `a`, we can easily find the end point `b` that makes `[a,b]` the, say, 68% confidence interval. The CDF gives us the cumulative probability to some point `x`, so we want to fulfill `CDF(b) - CDF(a) = 68%`. Since we have discrete samples we can easily calculate the CDF (`np.cumsum`).
 ![CDF](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/CDF_illustration.png?raw=true)
-Note that there are two ways to compute this, from 0 or from 1, but the lines are equivalent since we only look at differences between two points of the CDF, not the absolute value.
+
+Todo: Interpolation?
+
+---
 
 Now we can get the interval boundary `b` corresponding to `a` containing 68% of the probability volume as `b = invCDF(CDF(a) + 0.68)`. In practice we can optimize over `Y = CDF(a)` such that `b - a = invCDF(Y+0.68) - invCDF(Y)` is mimized.
 

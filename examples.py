@@ -5,7 +5,26 @@ import scipy.optimize as sop
 import numpy as np
 cdefault = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
+import numpy as np
+from scipy.interpolate import interp1d
+from scipy.optimize import minimize_scalar
+import anesthetic
 
+def myiCDF(samples, weights=None):
+    weights = np.ones(len(samples)) if weights is None else weights
+    # Sort and normalize
+    order = np.argsort(samples)
+    samples = np.array(samples)[order]
+    weights = np.array(weights)[order]/np.sum(weights)
+    # Compute inverse cumulative distribution function
+    cumsum = np.cumsum(weights)
+    S = np.array([np.min(samples), *samples, np.max(samples)])
+    CDF = np.append(np.insert(np.cumsum(weights), 0, 0), 1)
+    invCDF = interp1d(CDF, S)
+    return invCDF
+
+def anestiCDF(samples, weights=None):
+    return anesthetic.utils.cdf(samples, weights=weights, inverse=True)
 #Code
 def credibility_interval(samples, weights=None, level=0.68):
     assert level<1, "Level >= 1!"
@@ -22,14 +41,36 @@ def credibility_interval(samples, weights=None, level=0.68):
     # Find smallest interval
     distance = lambda Y, level=level: invCDF(Y+level)-invCDF(Y)
     res = sop.minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
-    #res = sop.minimize(distance, (1-level)/2, bounds=[(0,1-level)], method="Nelder-Mead")
     return np.array([invCDF(res.x), invCDF(res.x+level)])
 
 
 # Generate data, small example
 np.random.seed(1)
 data = np.random.normal(loc=7, scale=3, size=10)
-weights = np.ones(len(data))/len(data)
+data.sort()
+weights = np.ones(10)
+#weights = np.random.normal(loc=7, scale=3, size=10)
+weights /= np.sum(weights)
+
+# Plot data v1
+fig, ax = plt.subplots(constrained_layout=True, figsize=(6, 3))
+ax.set_title("Histogram")
+ax.set_ylabel("Data samples")
+ax.set_xlabel("Variable x")
+for d in data:
+    ax.set_ylim(0, 1.65)
+    ax.axvline(d, ymin=0, ymax=1/1.65, color="black", lw=2)
+    ax.scatter(d, 0.5)
+
+for i in range(5):
+    left = data[0]+0.1 + (data[1]-data[0]-0.2)*i/4
+    right = data[8]-0.1 - (data[8]-data[7]-0.2)*i/4
+    ax.plot([left, right], [1.1+0.1*i]*2, lw=3, color=cdefault[1])
+ax.text(np.mean(data[[1,7]]), 1.52, 'Containing 70% of the data',
+    verticalalignment='bottom', horizontalalignment='center',
+    color=cdefault[1], fontsize=10)
+plt.savefig("illustrations/low_sample_example_1.png", dpi=600)
+plt.show()
 
 # Plot data
 fig, ax = plt.subplots(constrained_layout=True, figsize=(6, 3))
@@ -37,20 +78,20 @@ ax.set_title("Histogram")
 ax.set_ylabel("Number of samples")
 ax.set_xlabel("Variable x")
 for d in data:
-	ax.set_ylim(0, 1.5)
-	ax.axvline(d, ymin=0, ymax=2/3, color="black", lw=2)
-	ax.scatter(d, 0.5)
+    ax.set_ylim(0, 1.5)
+    ax.axvline(d, ymin=0, ymax=2/3, color="black", lw=2)
+    ax.scatter(d, 0.5)
 
 # Intervals
 data.sort()
 ax.plot(data[[1,6]], [1.1]*2, lw=3, color=cdefault[0])
 ax.text(np.mean(data[[1,6]]), 1.12, 'Containing 60% of the data',
-	verticalalignment='bottom', horizontalalignment='center',
-	color=cdefault[0], fontsize=8)
+    verticalalignment='bottom', horizontalalignment='center',
+    color=cdefault[0], fontsize=8)
 ax.plot(data[[1,7]], [1.3]*2, lw=3, color=cdefault[1])
 ax.text(np.mean(data[[1,7]]), 1.32, 'Containing 70% of the data',
-	verticalalignment='bottom', horizontalalignment='center',
-	color=cdefault[1], fontsize=8)
+    verticalalignment='bottom', horizontalalignment='center',
+    color=cdefault[1], fontsize=8)
 
 # Uncertainty arrows
 a = data[6]
@@ -58,60 +99,46 @@ b = data[7]
 c = data[1]
 ax.arrow(a+(b-a)/2, 1.2, (b-a)/2, 0, length_includes_head=True, color=cdefault[2], head_width=0.025, head_length=0.2, lw=2, zorder=2)
 ax.arrow(a+(b-a)/2, 1.2, (a-b)/2, 0, length_includes_head=True, color=cdefault[2], head_width=0.025, head_length=0.2, lw=2, zorder=2)
-ax.arrow(a, 0.8, 0.5, 0, length_includes_head=True, color=cdefault[3], head_width=0.025, head_length=0.2, lw=2, zorder=-2)
-ax.arrow(a, 0.8, -0.5, 0, length_includes_head=True, color=cdefault[3], head_width=0.025, head_length=0.2, lw=2, zorder=-2)
-ax.arrow(b, 0.8, 0.5, 0, length_includes_head=True, color=cdefault[3], head_width=0.025, head_length=0.2, lw=2, zorder=-2)
-ax.arrow(b, 0.8, -0.5, 0, length_includes_head=True, color=cdefault[3], head_width=0.025, head_length=0.2, lw=2, zorder=-2)
-ax.arrow(c, 0.8, 0.5, 0, length_includes_head=True, color=cdefault[3], head_width=0.025, head_length=0.2, lw=2, zorder=-2)
-ax.arrow(c, 0.8, -0.5, 0, length_includes_head=True, color=cdefault[3], head_width=0.025, head_length=0.2, lw=2, zorder=-2)
 
-plt.savefig("illustrations/low_sample_example.png", dpi=600)
-plt.close()
-
-# Reconsider common-sense
-fig, ax = plt.subplots(constrained_layout=True, figsize=(6, 3))
-ax.set_title("Histogram")
-ax.set_ylabel("Number of samples")
-ax.set_xlabel("Variable x")
-for d in data:
-    ax.set_ylim(0, 1.5)
-    ax.axvline(d, ymin=0, ymax=1/1.5, color="black", lw=2)
-    ax.scatter(d, 0.5)
-
-ax.plot(data[[1,7]], [1.25]*2, lw=3, color=cdefault[1])
-ax.plot([data[0]+0.1, data[8]-0.1], [1.3]*2, lw=3, color=cdefault[1])
-ax.plot([data[1], data[8]], [1.15]*2, lw=3, color=cdefault[2])
-ax.text(np.mean(data[[1,7]]), 1.32, 'Containing 70% of the data',
-    verticalalignment='bottom', horizontalalignment='center',
-    color=cdefault[1], fontsize=8)
-
-plt.savefig("illustrations/low_sample_example_v2.png", dpi=600)
-plt.close()
+plt.savefig("illustrations/low_sample_example_2.png", dpi=600)
+plt.show()
 
 
 
 data.sort()
 # Note: Data and weights are already sorted here, and weights are normalized
 cumsum = np.cumsum(weights)
+cumsum_rev = np.cumsum(weights[::-1])
 CDF_x = np.array([np.min(data), *data, np.max(data)])
 CDF_y = np.array([0, *cumsum, 1])
+CDF_y_rev = np.array([0, *cumsum_rev, 1])
 CDF = sip.interp1d(CDF_x, CDF_y)
 invCDF = sip.interp1d(CDF_y, CDF_x)
 
+def trueCDF(a,b):
+    inter = np.logical_and(data>=a, data<=b)
+    return np.sum(weights[inter])
 
 
 # Plot CDF
+wpct = interp1d(data, (weights.cumsum()-weights/2)/weights.sum())
+#xplot = np.linspace(np.min(data),np.max(data),1000)
+xplot = np.linspace(-0.5,12.5,1000)
 fig, ax = plt.subplots(constrained_layout=True, figsize=(6, 3))
-ax.plot(CDF_x, CDF_y, label="Weights from 0 to x", color=cdefault[2])
-ax.plot(CDF_x[::-1], 1-CDF_y, label="1 - Weight from 1 to x", color=cdefault[3])
+#ax.plot(CDF_x, CDF_y, label="Weights from 0 to x", color=cdefault[2])
+ax.plot(xplot, [trueCDF(-100, x) for x in xplot], label=r"CDF (cumulative weight from $-\infty$ to $x$)", color=cdefault[1])
+#ax.plot(xplot, [1-trueCDF(x, 100) for x in xplot], label="TrueCDF x to inf", color=cdefault[5])
+#ax.plot(CDF_x[::-1], 1-CDF_y_rev, label=r"1 - Weight from $\infty$ to x", color=cdefault[3])
+#ax.plot(xplot, anesthetic.utils.cdf(data)(xplot), label="anesthetic cdf", color=cdefault[0])
+#ax.plot(xplot, wpct(xplot), label="wpct", color=cdefault[4])
 ax.grid(color="grey", lw=0.2)
 ax.scatter(CDF_x, CDF_y, color="black", s=10)
-ax.scatter(CDF_x[::-1], 1-CDF_y, color="black", s=10)
+ax.scatter(CDF_x[::-1], 1-CDF_y_rev, color="black", s=10)
 ax.legend()
 ax.set_ylabel("CDF")
 ax.set_xlabel("Variable x")
 plt.savefig("illustrations/CDF_illustration.png", dpi=600)
-plt.close()
+plt.show()
 
 # CDF y-level scanning
 a,b = credibility_interval(data)
@@ -141,7 +168,7 @@ ax.legend()
 ax.set_ylabel("CDF")
 ax.set_xlabel("Variable x")
 plt.savefig("illustrations/CDF_distances.png", dpi=600)
-plt.close()
+plt.show()
 
 
 # Reconsider common-sense
@@ -166,7 +193,7 @@ ax.text(np.mean(data[[1,7]]), 1.47, '68% interval from CDF-interpolation',
     verticalalignment='bottom', horizontalalignment='center',
     color=cdefault[3], fontsize=8)
 plt.savefig("illustrations/low_sample_again.png", dpi=600)
-plt.close()
+plt.show()
 
 
 
@@ -177,6 +204,25 @@ plt.close()
 # Generate data, large example
 np.random.seed(2)
 data = np.random.normal(loc=7, scale=3, size=1000)
+
+
+# Plot data
+fig, ax = plt.subplots(constrained_layout=True, figsize=(6, 3))
+ax.hist(data, color="black", bins=50, range=[-4, 20], label="Samples")
+ax.set_title("Histogram")
+ax.set_ylabel("Number of samples")
+ax.set_ylim(0, 80)
+ax.set_xlim(-4, 20)
+xplot=np.linspace(-10, 30, 1000)
+ax.plot(xplot, 1000/(50/24)*sst.norm.pdf(xplot, loc=7, scale=3), color=cdefault[0], lw=2, label="True distribution")
+ax.axvline(7-3, ymax=1000/(50/24)*sst.norm.pdf(7-3, loc=7, scale=3)/80, lw=2, ls=":", color=cdefault[0])
+ax.axvline(7+3, ymax=1000/(50/24)*sst.norm.pdf(7+3, loc=7, scale=3)/80, lw=2, ls=":", color=cdefault[0])
+c1,c2 = credibility_interval(data)
+ax.axvline(c1, ymax=1, lw=2, ls="-", color=cdefault[1], label="68% of samples")
+ax.axvline(c2, ymax=1, lw=2, ls="-", color=cdefault[1])
+ax.legend()
+plt.savefig("illustrations/high_sample_example.png", dpi=600)
+plt.show()
 
 
 # Plot data
@@ -203,7 +249,7 @@ ax["right"].hist(data, color="black", bins=100, range=[9, 11])
 ax["right"].set_xlim(9, 11)
 ax["right"].axvline(c2, ymax=1, lw=2, ls="-", color=cdefault[1])
 
-plt.savefig("illustrations/high_sample_example.png", dpi=600)
+plt.savefig("illustrations/high_sample_example_mosaic.png", dpi=600)
 plt.close()
 
 # Chi2 distribution example of HDPI vs quantiles
