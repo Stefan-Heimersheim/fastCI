@@ -21,7 +21,7 @@ In terms of types of intervals, there are 3 types of credible interval I see oft
 Common methods rely on interpolating the probability density function (PDF) via kernel density estimation (KDE) to derive the credible interval. This (a) introduces a dependency on the KDE used, and (b) is often quite slow, especially for large sample sizes.
 
 Instead, we can use the samples themselves to derive this interval, realizing that iso-pdf and HPD are equivalent, and HPD does not require an interpolated PDF. Here is an example of a Normal distribution, along with a histogram of 1000 samples and the 68% HPD interval derived from these samples:
-![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example.png?raw=true)
+![example histogram](illustrations/high_sample_example.png)
 
 ### Possible biases with low sample density
 There are two issues to be aware of when the sample density is low:
