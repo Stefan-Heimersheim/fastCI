@@ -27,9 +27,11 @@ Instead, we can use the samples themselves to derive this interval, realizing th
 There are two issues to be aware of when the sample density is low:
 
 1. There are many intervals we can draw all including the same samples. The HPD would be the narrowest of these intervals, but intuitively we can see that this is an unusually small interval
+
 ![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example_1.png?raw=true)
 
 2. With e.g. 10 samples, we can only compute credibility intervals in 10% steps, we cannot read off 68% of 10 samples, just 60% or 70%
+
 ![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example_2.png?raw=true)
 
 
