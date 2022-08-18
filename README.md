@@ -10,11 +10,11 @@ Technically any interval is _a_ credible interval, but typically we are interest
 
 In terms of types of intervals, there are 3 types of credible interval I see often, matching [Wikipedia's list](https://en.wikipedia.org/wiki/Credible_interval). I will use 68% credible intervals for illustration:
 * Highest posterior density (HPD) or iso-probability-density (iso-pdf) intervals (mostly equivalent): The smallest (i.e. densest) interval containing 68% of the probability volume. This is also the interval where the probability density is equal at the interval boundaries, thus it is sometimes referred to as "waterline method" -- imagine a waterline where the credibility interval is wherever the probability density function lies above that line:
-![illustration](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/highest-probability-density-interval.png?raw=true)
+![illustration](illustrations/highest-probability-density-interval.png?raw=true)
 * Equal-tailed interval: The interval containing 68% of the probability volume with the same probability volume below and above the interval, i.e. 16% on each side.
-![illustration](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/equal-tailed-interval.png?raw=true)
+![illustration](illustrations/equal-tailed-interval.png?raw=true)
 * Mean-centered interval: The interval centered around the mean, i.e. an interval [mean-a, mean+a] containing 68% of the probability volume. This is often quotes as "mean +/- error (68% confidence)". Although note that this notation also can mean "mean +/- error" not necessarily containing 68% probability.
-![illustration](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/mean-centered-interval.png?raw=true)
+![illustration](illustrations/mean-centered-interval.png?raw=true)
 (Note: The interval happens to look similar to the previous one, this is a coincidence and not generally true.)
 
 ## Sample-based iso-pdf/HDP interval
@@ -28,16 +28,16 @@ There are two issues to be aware of when the sample density is low:
 
 1. There are many intervals we can draw all including the same samples. The HPD would be the narrowest of these intervals, but intuitively we can see that this is an unusually small interval
 
-![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example_1.png?raw=true)
+![example histogram](illustrations/high_sample_example_1.png)
 
 2. With e.g. 10 samples, we can only compute credibility intervals in 10% steps, we cannot read off 68% of 10 samples, just 60% or 70%
 
-![example histogram](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/high_sample_example_2.png?raw=true)
+![example histogram](illustrations/high_sample_example_2.png)
 
 
 ### The Cumulative Density Function
 We can actually easily and efficiently compute the HPD interval using the Cumulative Density Function (CDF). Key is that, for any start point of an interval `a`, we can easily find the end point `b` that makes `[a,b]` the, say, 68% confidence interval. The CDF gives us the cumulative probability to some point `x`, so we want to fulfill `CDF(b) - CDF(a) = 68%`. Since we have discrete samples we can easily calculate the CDF (`np.cumsum`).
-![CDF](https://github.com/Stefan-Heimersheim/fastCI/blob/main/illustrations/CDF_illustration.png?raw=true)
+![CDF](illustrations/CDF_illustration.png)
 
 Todo: Interpolation?
 
