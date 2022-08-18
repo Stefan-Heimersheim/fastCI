@@ -28,11 +28,11 @@ There are two issues to be aware of when the sample density is low:
 
 1. There are many intervals we can draw all including the same samples. The HPD would be the narrowest of these intervals, but intuitively we can see that this is an unusually small interval
 
-![example histogram](illustrations/high_sample_example_1.png)
+![example](illustrations/low_sample_example_1.png)
 
 2. With e.g. 10 samples, we can only compute credibility intervals in 10% steps, we cannot read off 68% of 10 samples, just 60% or 70%
 
-![example histogram](illustrations/high_sample_example_2.png)
+![example](illustrations/low_sample_example_2.png)
 
 
 ### The Cumulative Density Function
