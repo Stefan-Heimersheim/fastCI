@@ -55,7 +55,7 @@ anest = anesthetic.utils.cdf(data, w=weights, inverse=True)
 # skipping sym as equivalent
 lh = sip.interp1d([0, *np.cumsum(weights), 1], [data.min(), *data, data.max()])
 # skipping rh in favour of lh
-wpct = sip.interp1d(data, (weights.cumsum()-weights/2)/weights.sum())
+wpct = sip.interp1d([0, *(weights.cumsum()-weights/2)/weights.sum(), 1], [data.min(), *data, data.max()])
 dcdf = sip.interp1d([0, *np.cumsum(weights), 1], [data.min(), *data, data.max()], kind="zero")
 # Test if they all work for the whole range
 xplot = np.linspace(0,1,10000)
@@ -66,22 +66,30 @@ dcdf(xplot)
 
 def credibility_interval_of_invCDF(invCDF, level):
     distance = lambda Y, level=level: invCDF(Y+level)-invCDF(Y)
-    res = minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
+    res = sop.minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
     return np.array([invCDF(res.x), invCDF(res.x+level)])
 
 
-for random_weights in [False, True]:
-	for size in [1e1, 1e2, 1e3]:
+cases = ["wpct", "anest", "dcdf", "lh"]
+accuracyleft = {}
+accuracyright = {}
+intervalsize = {}
+for c in cases:
+	accuracyleft[c] = []
+	accuracyright[c] = []
+	intervalsize[c] = []
+sizes = [1e2]
+for random_weights in [True]:
+	for size in sizes:
 		print("size", size)
 		N_data = int(size)
-		true_cdf = []
-		discrete_cdf = []
-		sym_cdf = []
-		wpct_cdf = []
-		anest_cdf = []
-		lh_cdf = []
-		rh_cdf = []
+		t_CI = []
+		anest_CI = []
+		lh_CI = []
+		wpct_CI = []
+		dcdf_CI = []
 		for i in range(10000):
+			level = np.random.uniform()
 			data = np.random.normal(size=N_data)
 			data.sort() #!
 			if random_weights:
@@ -89,4 +97,43 @@ for random_weights in [False, True]:
 			else:
 				weights = np.ones(N_data)
 			weights /= weights.sum() #!
-			
+			t = sst.norm.ppf
+			anest = anesthetic.utils.cdf(data, w=weights, inverse=True)
+			lh = sip.interp1d([0, *np.cumsum(weights), 1], [data.min(), *data, data.max()])
+			wpct = sip.interp1d([0, *(weights.cumsum()-weights/2)/weights.sum(), 1], [data.min(), *data, data.max()])
+			dcdf = sip.interp1d([0, *np.cumsum(weights), 1], [data.min(), *data, data.max()], kind="zero")
+			t_CI.append(credibility_interval_of_invCDF(t, level))
+			anest_CI.append(credibility_interval_of_invCDF(anest, level))
+			accuracyleft["anest"].append(anest_CI[-1][0]-t_CI[-1][0])
+			accuracyright["anest"].append(anest_CI[-1][1]-t_CI[-1][1])
+			intervalsize["anest"].append(anest_CI[-1][1]-anest_CI[-1][0]-t_CI[-1][1]+t_CI[-1][0])
+			lh_CI.append(credibility_interval_of_invCDF(lh, level))
+			accuracyleft["lh"].append(lh_CI[-1][0]-t_CI[-1][0])
+			accuracyright["lh"].append(lh_CI[-1][1]-t_CI[-1][1])
+			intervalsize["lh"].append(lh_CI[-1][1]-lh_CI[-1][0]-t_CI[-1][1]+t_CI[-1][0])
+			wpct_CI.append(credibility_interval_of_invCDF(wpct, level))
+			accuracyleft["wpct"].append(wpct_CI[-1][0]-t_CI[-1][0])
+			accuracyright["wpct"].append(wpct_CI[-1][1]-t_CI[-1][1])
+			intervalsize["wpct"].append(wpct_CI[-1][1]-wpct_CI[-1][0]-t_CI[-1][1]+t_CI[-1][0])
+			dcdf_CI.append(credibility_interval_of_invCDF(dcdf, level))
+			accuracyleft["dcdf"].append(dcdf_CI[-1][0]-t_CI[-1][0])
+			accuracyright["dcdf"].append(dcdf_CI[-1][1]-t_CI[-1][1])
+			intervalsize["dcdf"].append(dcdf_CI[-1][1]-dcdf_CI[-1][0]-t_CI[-1][1]+t_CI[-1][0])
+
+fig, [ax1, ax2] = plt.subplots(ncols=2, figsize=(8,4))
+ax1.axvline(0, color="k")
+ax1.set_title("Left interbal boundary Method-True")
+ax2.axvline(0, color="k")
+ax2.set_title("Right interbal boundary Method-True")
+for key in accuracyleft.keys():
+	ax1.hist(accuracyleft[key], label="accuracy", histtype="step", bins=100, density=False, range=[-3,3])
+	ax2.hist(accuracyright[key], label="accuracy", histtype="step", bins=100, density=False, range=[-3,3])
+plt.savefig("bias.png", dpi=600)
+plt.show()
+
+plt.axvline(0, color="k")
+for key in intervalsize.keys():
+	plt.hist(intervalsize[key], label="accuracy", histtype="step", bins=100, density=False, range=[-3,3])
+plt.title("Interval size Method-True")
+plt.savefig("size.png", dpi=600)
+plt.show()
