@@ -64,9 +64,16 @@ lh(xplot)
 wpct(xplot)
 dcdf(xplot)
 
-def credibility_interval_of_invCDF(invCDF, level):
+def credibility_interval_of_invCDF(invCDF, level, debug=False):
     distance = lambda Y, level=level: invCDF(Y+level)-invCDF(Y)
+    if debug and level<0.2:
+    	for y in np.linspace(0,1-level,20):
+    		print("Distance for Y =", y, distance(y))
     res = sop.minimize_scalar(distance, bounds=(0, 1-level), method="Bounded")
+    #res = sop.minimize(distance, (1-level)/2, bounds=[(0,1-level)], method="Nelder-Mead")
+    if debug and level<0.2:
+    	print(res)
+    	print("Returning Ybest =", res.x)
     return np.array([invCDF(res.x), invCDF(res.x+level)])
 
 
@@ -78,8 +85,9 @@ for c in cases:
 	accuracyleft[c] = []
 	accuracyright[c] = []
 	intervalsize[c] = []
-sizes = [1e2]
-for random_weights in [True]:
+sizes = [1e1]
+plot = False
+for random_weights in [False]:
 	for size in sizes:
 		print("size", size)
 		N_data = int(size)
@@ -88,8 +96,10 @@ for random_weights in [True]:
 		lh_CI = []
 		wpct_CI = []
 		dcdf_CI = []
-		for i in range(10000):
-			level = np.random.uniform()
+		if plot:
+			plt.figure(figsize=(5,4))
+		for i in range(10):
+			level = max(0, min(1, int(10*np.random.uniform())/10-0.05))
 			data = np.random.normal(size=N_data)
 			data.sort() #!
 			if random_weights:
@@ -97,11 +107,19 @@ for random_weights in [True]:
 			else:
 				weights = np.ones(N_data)
 			weights /= weights.sum() #!
+			# Note: cumsum(weights)<1 sometimes due to numerics
+			if plot:
+				for j in range(N_data):
+					plt.scatter(data[j],i, color="k", marker=".")
 			t = sst.norm.ppf
 			anest = anesthetic.utils.cdf(data, w=weights, inverse=True)
 			lh = sip.interp1d([0, *np.cumsum(weights), 1], [data.min(), *data, data.max()])
 			wpct = sip.interp1d([0, *(weights.cumsum()-weights/2)/weights.sum(), 1], [data.min(), *data, data.max()])
-			dcdf = sip.interp1d([0, *np.cumsum(weights), 1], [data.min(), *data, data.max()], kind="zero")
+			dcdf = sip.interp1d([0, *np.cumsum(weights), 1], [*data, data.max(), data.max()], kind="zero")
+			if i==9:
+				plt.title("Level "+str(level))
+				plt.plot(np.linspace(0,1,10000), dcdf(np.linspace(0,1,10000)))
+				plt.show()
 			t_CI.append(credibility_interval_of_invCDF(t, level))
 			anest_CI.append(credibility_interval_of_invCDF(anest, level))
 			accuracyleft["anest"].append(anest_CI[-1][0]-t_CI[-1][0])
@@ -115,10 +133,27 @@ for random_weights in [True]:
 			accuracyleft["wpct"].append(wpct_CI[-1][0]-t_CI[-1][0])
 			accuracyright["wpct"].append(wpct_CI[-1][1]-t_CI[-1][1])
 			intervalsize["wpct"].append(wpct_CI[-1][1]-wpct_CI[-1][0]-t_CI[-1][1]+t_CI[-1][0])
-			dcdf_CI.append(credibility_interval_of_invCDF(dcdf, level))
+			if i==9:
+				debug=True
+			else:
+				debug=False
+			dcdf_CI.append(credibility_interval_of_invCDF(dcdf, level, debug=debug))
 			accuracyleft["dcdf"].append(dcdf_CI[-1][0]-t_CI[-1][0])
 			accuracyright["dcdf"].append(dcdf_CI[-1][1]-t_CI[-1][1])
 			intervalsize["dcdf"].append(dcdf_CI[-1][1]-dcdf_CI[-1][0]-t_CI[-1][1]+t_CI[-1][0])
+			if plot:
+				plt.text(0, 0.5+i, "level = "+str(level))
+				plt.plot(t_CI[-1], [0+i, 0+i], color="k")
+				plt.plot(anest_CI[-1], [0.1+i, 0.1+i], color=cdefault[1], label="anest")
+				plt.plot(lh_CI[-1], [0.2+i, 0.2+i], color=cdefault[4], label="lh")
+				plt.plot(wpct_CI[-1], [0.3+i, 0.3+i], color=cdefault[0], label="wpct")
+				plt.plot(dcdf_CI[-1], [0.4+i, 0.4+i], color=cdefault[2], label="dcdf")
+				if i==0:
+					plt.legend()
+		if plot:
+			print("DCDF:", dcdf(0.21), dcdf(0.31), dcdf(0.41), dcdf(0.51), dcdf(0.61), dcdf(0.71))
+			plt.savefig("example_intervals.png")
+			plt.show()
 
 fig, [ax1, ax2] = plt.subplots(ncols=2, figsize=(8,4))
 ax1.axvline(0, color="k")
@@ -126,14 +161,14 @@ ax1.set_title("Left interbal boundary Method-True")
 ax2.axvline(0, color="k")
 ax2.set_title("Right interbal boundary Method-True")
 for key in accuracyleft.keys():
-	ax1.hist(accuracyleft[key], label="accuracy", histtype="step", bins=100, density=False, range=[-3,3])
-	ax2.hist(accuracyright[key], label="accuracy", histtype="step", bins=100, density=False, range=[-3,3])
+	ax1.hist(accuracyleft[key], label="accuracy", histtype="step", bins=101, density=False, range=[-3,3])
+	ax2.hist(accuracyright[key], label="accuracy", histtype="step", bins=101, density=False, range=[-3,3])
 plt.savefig("bias.png", dpi=600)
 plt.show()
 
 plt.axvline(0, color="k")
-for key in intervalsize.keys():
-	plt.hist(intervalsize[key], label="accuracy", histtype="step", bins=100, density=False, range=[-3,3])
+for key in accuracyleft.keys():
+	plt.hist(intervalsize[key], label="accuracy", histtype="step", bins=101, density=False, range=[-3,3])
 plt.title("Interval size Method-True")
 plt.savefig("size.png", dpi=600)
 plt.show()
